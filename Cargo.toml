@@ -1,0 +1,12 @@
+[package]
+name = "libcmt-binding-rust"
+version = "0.1.0"
+authors = ["Idogwu Chinonso <idogwuchi@gmail.com>"]
+edition = "2024"
+publish = true
+
+[dependencies]
+libc = "0.2"
+
+[build-dependencies]
+bindgen = "0.72"
