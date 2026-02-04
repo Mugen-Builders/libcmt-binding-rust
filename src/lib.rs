@@ -11,7 +11,7 @@ use std::{
 };
 
 pub(crate) fn to_io_result(rc: i32) -> std_io::Result<()> {
-    if rc >= 0 {
+    if rc == 0 {
         Ok(())
     } else {
         Err(std_io::Error::from_raw_os_error(-rc))
