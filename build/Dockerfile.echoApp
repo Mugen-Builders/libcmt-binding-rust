@@ -92,7 +92,13 @@ RUN rustup target add riscv64gc-unknown-linux-gnu
 WORKDIR /opt/cartesi/dapp
 
 # Copy echo app Cargo files first for better layer caching
-COPY . ./
+COPY sample_apps/echo_app/Cargo.toml sample_apps/echo_app/Cargo.lock ./
+
+# Copy Cargo configuration for cross-compilation linker settings
+COPY sample_apps/echo_app/.cargo ./.cargo
+
+# Copy source code
+COPY sample_apps/echo_app/src ./src
 
 # Install Cartesi linux headers needed by libcmt (provides linux/cartesi/cmio.h)
 ARG LINUX_HEADERS_URLPATH

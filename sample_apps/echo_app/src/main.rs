@@ -1,5 +1,3 @@
-use json::{object, JsonValue};
-use std::env;
 use libcmt_binding_rust::rollup::*;
 use libcmt_binding_rust::cmt_rollup_finish_t;
 
@@ -28,6 +26,7 @@ pub async fn handle_inspect(rollup: &mut Rollup) -> Result<bool, Box<dyn std::er
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut accept_previous_request = true;
     let mut rollup: Rollup = Rollup::new().expect("Failed to create Rollup instance");
+    
     loop {
         println!("Sending finish");
         let mut finish = cmt_rollup_finish_t {

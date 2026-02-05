@@ -80,8 +80,17 @@ fn convert_advance(c_adv: cmt_rollup_advance_t) -> Advance {
 }
 
 impl Rollup {
+    // pub fn new() -> io::Result<Self> {
+    //     let mut state = MaybeUninit::<cmt_rollup_t>::uninit();
+    //     let rc = unsafe { cmt_rollup_init(state.as_mut_ptr()) };
+    //     to_io_result(rc)?;
+    //     let inner = unsafe { state.assume_init() };
+    //     Ok(Self { inner })
+    // }
+
     pub fn new() -> io::Result<Self> {
-        let mut state = MaybeUninit::<cmt_rollup_t>::uninit();
+        eprintln!("CALLL DETECTED!!!!!!!!!!!!!!! Rollup::new() called");
+        let mut state = std::mem::MaybeUninit::<cmt_rollup_t>::zeroed(); // key change
         let rc = unsafe { cmt_rollup_init(state.as_mut_ptr()) };
         to_io_result(rc)?;
         let inner = unsafe { state.assume_init() };

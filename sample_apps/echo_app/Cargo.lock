@@ -271,7 +271,7 @@ checksum = "b4668fb0ea861c1df094127ac5f1da3409a82116a4ba74fca2e58ef927159bb3"
 [[package]]
 name = "libcmt-binding-rust"
 version = "0.1.0"
-source = "git+https://github.com/Mugen-Builders/libcmt-binding-rust.git#1f9c220a259f47793edfa371f712dc7e09786f16"
+source = "git+https://github.com/Mugen-Builders/libcmt-binding-rust.git?rev=7076f94#7076f94f514724e65cb9ee6dcdb7c40487921532"
 dependencies = [
  "bindgen",
  "libc",
