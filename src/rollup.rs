@@ -127,17 +127,6 @@ fn parse_hex_bytes(s: &str) -> io::Result<Vec<u8>> {
     })
 }
 
-fn parse_hex_fixed(s: &str, n: usize) -> io::Result<Vec<u8>> {
-    let v = parse_hex_bytes(s)?;
-    if v.len() != n {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            format!("expected {n} bytes, got {}", v.len()),
-        ));
-    }
-    Ok(v)
-}
-
 impl Rollup {
     pub fn new() -> io::Result<Self> {
         let mut state = std::mem::MaybeUninit::<cmt_rollup_t>::zeroed();
@@ -183,45 +172,71 @@ impl Rollup {
 
     pub fn emit_delegate_call_voucher(
         &mut self,
-        address: &String,
-        payload: &String,
+        address_hex: &str, 
+        payload_hex: &str,
     ) -> io::Result<u64> {
         let mut index = 0u64;
-        let address = parse_address_20(address)?;
-        let payload = cmt_abi_bytes_t {
-            data: payload.as_bytes().as_ptr() as *mut ::std::os::raw::c_void,
-            length: payload.len() as usize,
+        let address = parse_address_20(address_hex)?;
+        let payload_bytes = parse_hex_bytes(payload_hex)?;
+
+        let c_payload = cmt_abi_bytes_t {
+            data: if payload_bytes.is_empty() {
+                ptr::null_mut()
+            } else {
+                payload_bytes.as_ptr() as *mut ::std::os::raw::c_void
+            },
+            length: payload_bytes.len() as usize,
         };
         to_io_result(unsafe {
-            cmt_rollup_emit_delegate_call_voucher(&mut self.inner, &address as *const cmt_abi_address_t, &payload as *const cmt_abi_bytes_t, &mut index as *mut u64)
+            cmt_rollup_emit_delegate_call_voucher(&mut self.inner, &address as *const cmt_abi_address_t, &c_payload as *const cmt_abi_bytes_t, &mut index as *mut u64)
         })?;
         Ok(index)
     }
 
-    pub fn emit_notice(&mut self, payload: &String) -> io::Result<u64> {
-        let payload = cmt_abi_bytes_t {
-            data: payload.as_bytes().as_ptr() as *mut ::std::os::raw::c_void,
-            length: payload.len() as usize,
+    pub fn emit_notice(&mut self, payload_hex: &str) -> io::Result<u64> {
+        let payload_bytes = parse_hex_bytes(payload_hex)?;
+
+        let c_payload = cmt_abi_bytes_t {
+            data: if payload_bytes.is_empty() {
+                ptr::null_mut()
+            } else {
+                payload_bytes.as_ptr() as *mut ::std::os::raw::c_void
+            },
+            length: payload_bytes.len() as usize,
         };
+
         let mut index = 0u64;
-        to_io_result(unsafe { cmt_rollup_emit_notice(&mut self.inner, &payload, &mut index as *mut u64) })?;
+        to_io_result(unsafe { cmt_rollup_emit_notice(&mut self.inner, &c_payload as *const cmt_abi_bytes_t, &mut index as *mut u64) })?;
         Ok(index)
     }
 
-    pub fn emit_report(&mut self, payload: &String) -> io::Result<()> {
-        let payload = cmt_abi_bytes_t {
-            data: payload.as_bytes().as_ptr() as *mut ::std::os::raw::c_void,
-            length: payload.len() as usize,
+    pub fn emit_report(&mut self, payload_hex: &str) -> io::Result<()> {
+        let payload_bytes = parse_hex_bytes(payload_hex)?;
+
+        let c_payload = cmt_abi_bytes_t {
+            data: if payload_bytes.is_empty() {
+                ptr::null_mut()
+            } else {
+                payload_bytes.as_ptr() as *mut ::std::os::raw::c_void
+            },
+            length: payload_bytes.len() as usize,
         };
-        to_io_result(unsafe { cmt_rollup_emit_report(&mut self.inner, &payload) })
+
+        to_io_result(unsafe { cmt_rollup_emit_report(&mut self.inner, &c_payload as *const cmt_abi_bytes_t) })
     }
 
-    pub fn emit_exception(&mut self, payload: &String) -> io::Result<()> {
-        let payload = cmt_abi_bytes_t {
-            data: payload.as_bytes().as_ptr() as *mut ::std::os::raw::c_void,
-            length: payload.len() as usize,
+    pub fn emit_exception(&mut self, payload_hex: &str) -> io::Result<()> {
+        let payload_bytes = parse_hex_bytes(payload_hex)?;
+
+        let c_payload = cmt_abi_bytes_t {
+            data: if payload_bytes.is_empty() {
+                ptr::null_mut()
+            } else {
+                payload_bytes.as_ptr() as *mut ::std::os::raw::c_void
+            },
+            length: payload_bytes.len() as usize,
         };
-        to_io_result(unsafe { cmt_rollup_emit_exception(&mut self.inner, &payload) })
+        to_io_result(unsafe { cmt_rollup_emit_exception(&mut self.inner, &c_payload as *const cmt_abi_bytes_t) })
     }
 
     pub fn progress(&mut self, value: u32) -> io::Result<()> {
