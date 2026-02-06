@@ -151,7 +151,5 @@ ENV PATH="/opt/cartesi/bin:/opt/cartesi/dapp:${PATH}"
 WORKDIR /opt/cartesi/dapp
 COPY --from=cross-build-stage /opt/cartesi/dapp/dapp .
 
-ENV ROLLUP_HTTP_SERVER_URL="http://127.0.0.1:5004"
 
-ENTRYPOINT ["rollup-init"]
-CMD ["dapp"]
+ENTRYPOINT ["/opt/cartesi/dapp/dapp"]
