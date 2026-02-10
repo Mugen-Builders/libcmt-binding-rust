@@ -2,6 +2,9 @@ use libcmt_binding_rust::rollup::*;
 use libcmt_binding_rust::cmt_rollup_finish_t;
 use hex;
 use ethers_core::types::{Address, Bytes, U256};
+use ethers_core::abi::{Token, encode};
+use ethers_core::utils::{id};
+use std::str::FromStr;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Portals {
@@ -170,72 +173,228 @@ fn handle_parse_erc20_and_erc721_deposit(
         })),
     }
 }
-fn handle_parse_erc1155_batch_deposit(
-    input: String,
-) -> Result<Erc1155BatchDeposit, String> {
-    let bytes = hex::decode(input.trim_start_matches("0x")).unwrap();
 
-    if bytes.len() < 20 + 20 + 32 + 32 + 32 {
-        return Err(String::from(
-            "Invalid payload length".to_string(),
-        ));
+
+fn u256_from_word(word: &[u8]) -> Result<U256, String> {
+    if word.len() != 32 {
+        return Err("expected 32-byte ABI word".to_string());
+    }
+    Ok(U256::from_big_endian(word))
+}
+
+fn u256_to_usize_checked(x: U256) -> Result<usize, String> {
+    if x > U256::from(usize::MAX) {
+        return Err("Integer overflow when casting to usize".to_string());
+    }
+    Ok(x.as_usize())
+}
+
+fn read_word(buf: &[u8], off: usize) -> Result<&[u8], String> {
+    let end = off.checked_add(32).ok_or("offset overflow")?;
+    if end > buf.len() {
+        return Err("out of bounds".to_string());
+    }
+    Ok(&buf[off..end])
+}
+
+fn read_dyn_u256_array(buf: &[u8], base: usize) -> Result<Vec<U256>, String> {
+    let len = u256_to_usize_checked(u256_from_word(read_word(buf, base)?)?)?;
+    let start = base + 32;
+    let end = start
+        .checked_add(len.checked_mul(32).ok_or("array len overflow")?)
+        .ok_or("array span overflow")?;
+    if end > buf.len() {
+        return Err("array out of bounds".to_string());
     }
 
-    let u256_from = |b: &[u8]| U256::from_big_endian(b);
-    let _as_addr = |b: &[u8]| Address::from_slice(&b[12..32]);
+    let mut out = Vec::with_capacity(len);
+    let mut cur = start;
+    for _ in 0..len {
+        out.push(u256_from_word(&buf[cur..cur + 32])?);
+        cur += 32;
+    }
+    Ok(out)
+}
 
+fn read_dyn_bytes(buf: &[u8], base: usize) -> Result<String, String> {
+    let len = u256_to_usize_checked(u256_from_word(read_word(buf, base)?)?)?;
+    let start = base + 32;
+    let end = start.checked_add(len).ok_or("bytes span overflow")?;
+    if end > buf.len() {
+        return Err("bytes out of bounds".to_string());
+    }
+    Ok(hex::encode(&buf[start..end]))
+}
+
+fn handle_parse_erc1155_batch_deposit(input: String) -> Result<Erc1155BatchDeposit, String> {
+    let bytes = hex::decode(input.trim_start_matches("0x"))
+        .map_err(|e| format!("invalid hex: {e}"))?;
+
+    if bytes.len() < 40 + 32 * 4 {
+        return Err("Invalid payload length".to_string());
+    }
     let token = hex::encode(&bytes[0..20]);
     let sender = hex::encode(&bytes[20..40]);
+    let abi = &bytes[40..];
 
-    let token_ids_offset = u256_from(&bytes[64..96]).as_usize();
-    let values_offset = u256_from(&bytes[96..128]).as_usize();
-    let base_offset = u256_from(&bytes[128..160]).as_usize();
-    let exec_offset = u256_from(&bytes[160..192]).as_usize();
+    let token_ids_off = u256_to_usize_checked(u256_from_word(read_word(abi, 0)?)?)?;
+    let values_off    = u256_to_usize_checked(u256_from_word(read_word(abi, 32)?)?)?;
+    let base_off      = u256_to_usize_checked(u256_from_word(read_word(abi, 64)?)?)?;
+    let exec_off      = u256_to_usize_checked(u256_from_word(read_word(abi, 96)?)?)?;
 
-    let token_ids_len = u256_from(&bytes[token_ids_offset..token_ids_offset + 32]).as_usize();
-    let mut token_ids = Vec::with_capacity(token_ids_len);
-
-    let mut cursor = token_ids_offset + 32;
-    for _ in 0..token_ids_len {
-        token_ids.push(u256_from(&bytes[cursor..cursor + 32]));
-        cursor += 32;
+    for (name, off) in [
+        ("tokenIds", token_ids_off),
+        ("values", values_off),
+        ("base", base_off),
+        ("exec", exec_off),
+    ] {
+        if off % 32 != 0 {
+            return Err(format!("{name} offset not 32-byte aligned"));
+        }
+        if off + 32 > abi.len() {
+            return Err(format!("{name} offset out of bounds"));
+        }
     }
 
-    let values_len = u256_from(&bytes[values_offset..values_offset + 32]).as_usize();
-    let mut values = Vec::with_capacity(values_len);
+    let token_ids = read_dyn_u256_array(abi, token_ids_off)?;
+    let values    = read_dyn_u256_array(abi, values_off)?;
+    let base_layer_data = read_dyn_bytes(abi, base_off)?;
+    let exec_layer_data = read_dyn_bytes(abi, exec_off)?;
 
-    let mut cursor2 = values_offset + 32;
-    for _ in 0..values_len {
-        values.push(u256_from(&bytes[cursor2..cursor2 + 32]));
-        cursor2 += 32;
-    }
-
-    let base_len = u256_from(&bytes[base_offset..base_offset + 32]).as_usize();
-    let base_start = base_offset + 32;
-    let base_end = base_start + base_len;
-    let base_layer_data = hex::encode(bytes[base_start..base_end].to_vec());
-
-    let exec_len = u256_from(&bytes[exec_offset..exec_offset + 32]).as_usize();
-    let exec_start = exec_offset + 32;
-    let exec_end = exec_start + exec_len;
-    let exec_layer_data = hex::encode(bytes[exec_start..exec_end].to_vec());
-
-    if token_ids_len == 0 || values_len == 0 || token_ids_len != values_len {
-        return Err(String::from(
-            "Invalid payload data".to_string(),
-        ));
+    if token_ids.is_empty() || values.is_empty() || token_ids.len() != values.len() {
+        return Err("Invalid payload data".to_string());
     }
 
     Ok(Erc1155BatchDeposit {
-            sender,
-            token,
-            count: token_ids_len,
-            token_ids,
-            amounts: values,
-            base_layer_data,
-            exec_layer_data,
-        }
-    )
+        sender,
+        token,
+        count: token_ids.len(),
+        token_ids,
+        amounts: values,
+        base_layer_data,
+        exec_layer_data,
+    })
+}
+
+pub fn build_and_emit_erc20_voucher(rollup: &mut Rollup, deposit: Erc20Deposit) -> Result<bool, Box<dyn std::error::Error>> {
+    let sender_hex = deposit.sender.strip_prefix("0x").unwrap_or(&deposit.sender);
+    let sender_bytes = hex::decode(sender_hex)?;
+    if sender_bytes.len() != 20 {
+        return Err(format!("invalid sender address length: {}", sender_bytes.len()).into());
+    }
+    let sender = Address::from_slice(&sender_bytes);
+    let args: Vec<Token> = vec![
+        Token::Address(sender),
+        Token::Uint(deposit.amount.into()),
+    ];
+    let function_sig = "transfer(address,uint256)";
+    let selector = &id(function_sig)[..4];
+    let encoded_args = encode(&args);
+    let mut payload_bytes = Vec::new();
+    payload_bytes.extend_from_slice(selector);
+    payload_bytes.extend_from_slice(&encoded_args);
+    let payload = format!("0x{}", hex::encode(payload_bytes));
+    rollup.emit_voucher(&deposit.token, None, &payload)?;
+    println!("Emitted ERC20 voucher");
+    Ok(true)
+}
+
+pub fn build_and_emit_erc721_voucher(rollup: &mut Rollup, deposit: Erc721Deposit, app_contract: &str) -> Result<bool, Box<dyn std::error::Error>> {
+    let token = deposit.token;
+    let app_s = if app_contract.starts_with("0x") {
+        app_contract.to_string()
+    } else {
+        format!("0x{}", app_contract)
+    };
+    let app_addr = Address::from_str(&app_s)?;
+    let sender_s = if deposit.sender.starts_with("0x") {
+        deposit.sender.clone()
+    } else {
+        format!("0x{}", deposit.sender)
+    };
+    let sender_addr = Address::from_str(&sender_s)?;
+    let args: Vec<Token> = vec![
+        Token::Address(app_addr),
+        Token::Address(sender_addr),
+        Token::Uint(deposit.token_id.into()),
+    ];
+    let function_sig = "transferFrom(address,address,uint256)";
+    let selector = &id(function_sig)[..4];
+    let encoded_args = encode(&args);
+    let mut payload_bytes = Vec::new();
+    payload_bytes.extend_from_slice(selector);
+    payload_bytes.extend_from_slice(&encoded_args);
+    let payload = format!("0x{}", hex::encode(payload_bytes));
+    rollup.emit_voucher(&token, None, &payload)?;
+    println!("Emitted ERC721 voucher");
+    Ok(true)
+}
+
+pub fn build_and_emit_erc1155_single_voucher(rollup: &mut Rollup, deposit: Erc1155SingleDeposit, app_contract: &str) -> Result<bool, Box<dyn std::error::Error>> {
+    let app_s = if app_contract.starts_with("0x") {
+        app_contract.to_string()
+    } else {
+        format!("0x{}", app_contract)
+    };
+    let app_addr = Address::from_str(&app_s)?;
+    let sender_s = if deposit.sender.starts_with("0x") {
+        deposit.sender.clone()
+    } else {
+        format!("0x{}", deposit.sender)
+    };
+    let sender_addr = Address::from_str(&sender_s)?;
+
+    let args: Vec<Token> = vec![
+        Token::Address(app_addr),
+        Token::Address(sender_addr),
+        Token::Uint(deposit.token_id.into()),
+        Token::Uint(deposit.amount.into()),
+        Token::Bytes(deposit.exec_layer_data.as_bytes().to_vec()),
+    ];
+    let function_sig = "safeTransferFrom(address from, address to, uint256 id, uint256 value, bytes calldata data)";
+    let selector = &id(function_sig)[..4];
+    let encoded_args = encode(&args);
+    let mut payload_bytes = Vec::new();
+    payload_bytes.extend_from_slice(selector);
+    payload_bytes.extend_from_slice(&encoded_args);
+    let payload = format!("0x{}", hex::encode(payload_bytes));
+
+    rollup.emit_voucher(&deposit.token, None, &payload)?;
+    println!("Emitted ERC1155Single voucher");
+    Ok(true)
+}
+
+pub fn build_and_emit_erc1155_batch_voucher(rollup: &mut Rollup, deposit: Erc1155BatchDeposit, app_contract: &str) -> Result<bool, Box<dyn std::error::Error>> {
+    let app_s = if app_contract.starts_with("0x") {
+        app_contract.to_string()
+    } else {
+        format!("0x{}", app_contract)
+    };
+    let app_addr = Address::from_str(&app_s)?;
+    let sender_s = if deposit.sender.starts_with("0x") {
+        deposit.sender.clone()
+    } else {
+        format!("0x{}", deposit.sender)
+    };
+    let sender_addr = Address::from_str(&sender_s)?;
+
+    let args: Vec<Token> = vec![
+        Token::Address(app_addr),
+        Token::Address(sender_addr),
+        Token::Array(deposit.token_ids.iter().cloned().map(|id| Token::Uint(id.into())).collect()),
+        Token::Array(deposit.amounts.iter().cloned().map(|amount| Token::Uint(amount.into())).collect()),
+        Token::Bytes(deposit.exec_layer_data.as_bytes().to_vec()),
+    ];
+    let function_sig = "safeBatchTransferFrom(address from, address to, uint256[] calldata ids, uint256[] calldata values, bytes calldata data)";
+    let selector = &id(function_sig)[..4];
+    let encoded_args = encode(&args);
+    let mut payload_bytes = Vec::new();
+    payload_bytes.extend_from_slice(selector);
+    payload_bytes.extend_from_slice(&encoded_args);
+    let payload = format!("0x{}", hex::encode(payload_bytes));
+    rollup.emit_voucher(&deposit.token, None, &payload)?;
+    println!("Emitted ERC1155Batch voucher");
+    Ok(true)
 }
 
 
@@ -250,20 +409,34 @@ pub async fn handle_advance(rollup: &mut Rollup) -> Result<bool, Box<dyn std::er
 
     match match_portal(&msg_sender) {
         Portals::ERC1155BatchPortal => {
-            let deposit = handle_parse_erc1155_batch_deposit(payload)?;
+            let deposit: Erc1155BatchDeposit = handle_parse_erc1155_batch_deposit(payload)?;
             println!(" ERC1155BatchPortal Deposit: {:?}", deposit);
+            build_and_emit_erc1155_batch_voucher(rollup, deposit, &advance.app_contract)?;
         }
         Portals::ERC1155SinglePortal => {
             let deposit = handle_parse_erc1155_single_deposit(payload)?;
             println!(" ERC1155SinglePortal Deposit: {:?}", deposit);
+            build_and_emit_erc1155_single_voucher(rollup, deposit, &advance.app_contract)?;
         }
         Portals::ERC20Portal => {
-            let deposit = handle_parse_erc20_and_erc721_deposit(payload, TokenType::Erc20)?;
+            let deposit: Erc20OrErc721Deposit = handle_parse_erc20_and_erc721_deposit(payload, TokenType::Erc20)?;
             println!(" ERC20Portal Deposit: {:?}", deposit);
+            match deposit {
+                Erc20OrErc721Deposit::Erc20(deposit) => {
+                    build_and_emit_erc20_voucher(rollup, deposit)?;
+                }
+                _ => {}
+            }
         }
         Portals::ERC721Portal => {
-            let deposit = handle_parse_erc20_and_erc721_deposit(payload, TokenType::Erc721)?;
+            let deposit: Erc20OrErc721Deposit = handle_parse_erc20_and_erc721_deposit(payload, TokenType::Erc721)?;
             println!(" ERC721Portal Deposit: {:?}", deposit);
+            match deposit {
+                Erc20OrErc721Deposit::Erc721(deposit) => {
+                    build_and_emit_erc721_voucher(rollup, deposit, &advance.app_contract)?;
+                }
+                _ => {}
+            }
         }
         Portals::EtherPortal => {
             let deposit = handle_parse_ether_deposit(payload)?;

@@ -725,7 +725,7 @@ checksum = "bcc35a38544a891a5f7c865aca548a982ccb3b8650a5b06d0fd33a10283c56fc"
 [[package]]
 name = "libcmt-binding-rust"
 version = "0.1.0"
-source = "git+https://github.com/Mugen-Builders/libcmt-binding-rust.git?rev=eb3926cfe615e5bdc1a8a5db1276543b8dbbf8f6#eb3926cfe615e5bdc1a8a5db1276543b8dbbf8f6"
+source = "git+https://github.com/Mugen-Builders/libcmt-binding-rust.git?rev=1042fab58cba794ab84ba8370c8e7e7e038d3471#1042fab58cba794ab84ba8370c8e7e7e038d3471"
 dependencies = [
  "bindgen",
  "hex",
