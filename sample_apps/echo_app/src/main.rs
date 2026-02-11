@@ -133,6 +133,12 @@ fn handle_parse_ether_deposit(input: String) -> Result<EtherDeposit, String> {
 
     let exec_layer_data = hex::encode(bytes[52..].to_vec());
 
+    println!(":::: LOGS:::: EtherDeposit: {:?}", EtherDeposit {
+        sender: sender.clone(),
+        amount: value,
+        exec_layer_data: exec_layer_data.clone(),
+    });
+
     Ok(EtherDeposit {
         sender,
         amount: value,
@@ -441,7 +447,9 @@ pub async fn handle_advance(rollup: &mut Rollup) -> Result<bool, Box<dyn std::er
         Portals::EtherPortal => {
             let deposit = handle_parse_ether_deposit(payload)?;
             println!(" EtherPortal Deposit: {:?}", deposit);
-            rollup.emit_voucher(&deposit.sender, Some(&deposit.amount.to_string()), &deposit.exec_layer_data)?;
+            let amount_hex = format!("0x{:x}", deposit.amount);
+            rollup.emit_voucher(&deposit.sender, Some(&amount_hex), &deposit.exec_layer_data)?;
+            println!(":::: LOGS:::: Emitted voucher: {:?}", &amount_hex);
             println!("Emitted voucher");
         }
         Portals::None => {
@@ -492,4 +500,3 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 }
-

@@ -1,0 +1,5 @@
+[machine]
+entrypoint = "/opt/cartesi/dapp/dapp"
+ram-length = "256Mi"
+user = "root"
+workdir = "/opt/cartesi/dapp"

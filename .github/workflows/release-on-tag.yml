@@ -1,0 +1,77 @@
+# - Auto-generated release notes (from commits/PRs since last release)
+# - Artifacts: source zip and cargo .crate package
+
+name: Release on tag
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Cache cargo registry and build
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libclang-dev clang zip
+
+      - name: Build release
+        run: cargo build --release
+
+      - name: Create package
+        run: cargo package --allow-dirty --no-verify
+
+      - name: Create source archive
+        id: source
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/}"
+          SOURCE_NAME="libcmt-binding-rust-${VERSION}"
+          zip -r "${SOURCE_NAME}-source.zip" . \
+            -x ".git/*" \
+            -x "target/*" \
+            -x "*.zip" \
+            -x ".github/*"
+          echo "name=${SOURCE_NAME}-source.zip" >> $GITHUB_OUTPUT
+          if [ ! -f "${SOURCE_NAME}-source.zip" ]; then
+            echo "Source archive was not created"
+            exit 1
+          fi
+
+      - name: Set package path
+        id: package
+        run: |
+          CRATE=$(ls target/package/*.crate 2>/dev/null | head -1)
+          if [ -z "$CRATE" ] || [ ! -f "$CRATE" ]; then
+            echo "No .crate file found under target/package/"
+            exit 1
+          fi
+          echo "path=${CRATE}" >> $GITHUB_OUTPUT
+
+      - name: Create release with notes and artifacts
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          make_latest: true
+          fail_on_unmatched_files: true
+          files: |
+            ${{ steps.source.outputs.name }}
+            ${{ steps.package.outputs.path }}

@@ -1,8 +1,6 @@
 guide.md
-
-
-
-# Added by cargo
-
 /target
 .cartesi/
+.pytest_cache/
+/tests/__pycache__/
+/sample_apps/echo_app/tests/__pycache__/

@@ -1,9 +1,10 @@
+[machine]
+entrypoint = "/opt/cartesi/dapp/dapp"
+ram-length = "256Mi"
+user = "root"
+workdir = "/opt/cartesi/dapp"
+
 [drives.root]
 builder = "docker"
 dockerfile = "build/Dockerfile.echoApp"
 format = "ext2"
-
-[drives.data]
-builder = "empty"
-user = "dapp"
-size = "100Mb"

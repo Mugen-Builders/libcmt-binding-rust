@@ -1,0 +1,47 @@
+# name: Test
+
+# on:
+#   push:
+#     branches: [main]
+#   pull_request:
+#     branches: [main]
+
+# jobs:
+#   test:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Checkout repository
+#         uses: actions/checkout@v4
+#         with:
+#           submodules: recursive
+
+#       - name: Install Cartesi CLI
+#         run: npm install -g @cartesi/cli@2.0.0-alpha.20
+
+#       - name: Verify Cartesi CLI
+#         run: cartesi --help
+
+#       - name: Build with Cartesi
+#         run: cartesi build -c "./cartesi.echoApp.toml"
+
+#       - name: Set up Python
+#         uses: actions/setup-python@v5
+#         with:
+#           python-version: "3.12"
+
+#       - name: Create virtual environment and install test suite
+#         run: |
+#           python3 -m venv .venv
+#           . .venv/bin/activate
+#           pip install --upgrade pip
+#           pip install "cartesapp[dev]@git+https://github.com/prototyp3-dev/cartesapp@v1.2.1"
+
+#       - name: Verify cartesapp CLI
+#         run: |
+#           . .venv/bin/activate
+#           cartesapp --help
+
+#       - name: Run tests
+#         run: |
+#           . .venv/bin/activate
+#           cartesapp test --config-file "./cartesi.echoApp.toml" --log-level debug --cartesi-machine

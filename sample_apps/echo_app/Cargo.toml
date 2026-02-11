@@ -8,6 +8,6 @@ json = "0.12"
 hex = "0.4.3"
 hyper = { version = "0.14", features = ["http1", "runtime", "client"] }
 tokio = { version = "1.32", features = ["macros", "rt-multi-thread"] }
-libcmt-binding-rust = { git = "https://github.com/Mugen-Builders/libcmt-binding-rust.git", rev = "1042fab58cba794ab84ba8370c8e7e7e038d3471" }
+libcmt-binding-rust = { git = "https://github.com/Mugen-Builders/libcmt-binding-rust.git", rev = "86f0e3aaa34928c3780f3f633c7ef7844fa94ae4" }
 ethers-core = "1.0.0"
 
