@@ -481,22 +481,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
         rollup.finish(&mut finish)?;
         
-        let next_request_type = match finish.next_request_type {
-            0 => "advance_state",
-            1 => "inspect_state",
-            _ => {
+        accept_previous_request = match finish.next_request_type {
+            0 => {
+                println!("Received next input of type: advance_state");
+                handle_advance(&mut rollup).await?
+            },
+            1 => {
+                println!("Received next input of type: inspect_state");
+                handle_inspect(&mut rollup).await?
+            },
+            _ =>  {
                 eprintln!("Unknown request type: {}", finish.next_request_type);
-                "unknown"
-            }
-        };
-        println!("Received next input of type: {:?}", next_request_type);
-        accept_previous_request = match next_request_type {
-            "advance_state" => handle_advance(&mut rollup).await?,
-            "inspect_state" => handle_inspect(&mut rollup).await?,
-            _ => {
-                eprintln!("Unknown request type");
                 false
             }
-        }
+        };
     }
 }
