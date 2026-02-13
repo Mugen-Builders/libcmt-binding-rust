@@ -72,15 +72,15 @@ pub struct Erc1155BatchDeposit {
 }
 
 pub fn match_portal(address: &str) -> Portals {
-    if address.eq_ignore_ascii_case("0xc700A2e5531E720a2434433b6ccf4c0eA2400051") {
+    if address.eq_ignore_ascii_case("0xe246Abb974B307490d9C6932F48EbE79de72338A") {
         Portals::ERC1155BatchPortal
-    } else if address.eq_ignore_ascii_case("0xc700A261279aFC6F755A3a67D86ae43E2eBD0051") {
+    } else if address.eq_ignore_ascii_case("0x18558398Dd1a8cE20956287a4Da7B76aE7A96662") {
         Portals::ERC1155SinglePortal
-    } else if address.eq_ignore_ascii_case("0xc700D6aDd016eECd59d989C028214Eaa0fCC0051") {
+    } else if address.eq_ignore_ascii_case("0xACA6586A0Cf05bD831f2501E7B4aea550dA6562D") {
         Portals::ERC20Portal
-    } else if address.eq_ignore_ascii_case("0xc700d52F5290e978e9CAe7D1E092935263b60051") {
+    } else if address.eq_ignore_ascii_case("0x9E8851dadb2b77103928518846c4678d48b5e371") {
         Portals::ERC721Portal
-    } else if address.eq_ignore_ascii_case("0xc70076a466789B595b50959cdc261227F0D70051") {
+    } else if address.eq_ignore_ascii_case("0xA632c5c05812c6a6149B7af5C56117d1D2603828") {
         Portals::EtherPortal
     } else {
         Portals::None

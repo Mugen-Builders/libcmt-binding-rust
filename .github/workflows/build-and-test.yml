@@ -95,7 +95,7 @@ jobs:
           sudo ln -sf /lib/x86_64-linux-gnu/libc.so.6 /usr/local/lib/libc.so
 
       - name: Install Cartesi CLI
-        run: npm install -g @cartesi/cli@2.0.0-alpha.20
+        run: npm install -g @cartesi/cli@2.0.0-alpha.26
 
       - name: Run Cartesi Doctor
         run: cartesi doctor
