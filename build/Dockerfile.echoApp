@@ -4,10 +4,8 @@
 # for the defined date, no matter when the image is built.
 ARG UBUNTU_TAG=noble-20250910
 ARG APT_UPDATE_SNAPSHOT=20250915T030400Z
-ARG MACHINE_GUEST_TOOLS_VERSION=0.17.2
-ARG MACHINE_GUEST_TOOLS_SHA256SUM=c077573dbcf0cdc146adf14b480bfe454ca63aa4d3e8408c5487f550a5b77a41
-ARG LINUX_HEADERS_URLPATH=https://github.com/cartesi/machine-linux-image/releases/download/v0.20.0/linux-libc-dev-riscv64-cross-6.5.13-ctsi-1-v0.20.0.deb
-ARG LINUX_HEADERS_SHA256=2723435e8b45d8fb7a79e9344f6dc517b3dbc08e03ac17baab311300ec475c08
+ARG MACHINE_GUEST_TOOLS_VERSION=0.18.0
+ARG MACHINE_GUEST_TOOLS_SHA256SUM=204d4260defd68e11b957ae1f1b511b6c2c74345c918748be06f592733b72dcd
 ARG RUST_VERSION=1.90.0
 
 ################################################################################
@@ -100,18 +98,14 @@ COPY sample_apps/echo_app/.cargo ./.cargo
 # Copy source code
 COPY sample_apps/echo_app/src ./src
 
-# Install Cartesi linux headers needed by libcmt (provides linux/cartesi/cmio.h)
-ARG LINUX_HEADERS_URLPATH
-ARG LINUX_HEADERS_SHA256
-RUN echo "[headers] Downloading Cartesi linux headers..." && \
-    curl -fsSL -o /tmp/linux-headers.deb "$LINUX_HEADERS_URLPATH" && \
-    echo "${LINUX_HEADERS_SHA256} /tmp/linux-headers.deb" | sha256sum -c - && \
-    dpkg-deb -x /tmp/linux-headers.deb / && \
-    rm /tmp/linux-headers.deb
+# libcmt >= 0.18.0 bundles libcmt/ioctl.h (vendored linux/cartesi/cmio.h), so the
+# Cartesi linux headers package is no longer needed to build it.
 
 # Build libcmt C library for RISC-V (required by libcmt-binding-rust at link time)
-RUN echo "[libcmt] Cloning machine-guest-tools..." && \
-    git clone --depth 1 https://github.com/cartesi/machine-guest-tools.git /tmp/machine-guest-tools
+ARG MACHINE_GUEST_TOOLS_VERSION
+RUN echo "[libcmt] Cloning machine-guest-tools v${MACHINE_GUEST_TOOLS_VERSION}..." && \
+    git clone --depth 1 --branch v${MACHINE_GUEST_TOOLS_VERSION} \
+      https://github.com/cartesi/machine-guest-tools.git /tmp/machine-guest-tools
 RUN echo "[libcmt] Building libcmt for riscv64..." && \
     make -C /tmp/machine-guest-tools/sys-utils/libcmt libcmt TOOLCHAIN_PREFIX=riscv64-linux-gnu-
 RUN echo "[libcmt] Copying libcmt.a to known path..." && \
