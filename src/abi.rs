@@ -10,7 +10,6 @@ use crate::generated::{
     cmt_abi_mark_frame, cmt_abi_peek_bytes_d, cmt_abi_peek_funsel, cmt_abi_put_address,
     cmt_abi_put_bool, cmt_abi_put_bytes_d, cmt_abi_put_bytes_s, cmt_abi_put_funsel,
     cmt_abi_put_uint, cmt_abi_put_uint_be, cmt_abi_put_uint256, cmt_abi_reserve_bytes_d,
-    cmt_abi_start_frame,
 };
 use crate::{cmt_abi_address_t, cmt_abi_bytes_t, cmt_abi_u256_t, cmt_buf_t, to_io_result};
 
@@ -97,10 +96,6 @@ pub fn get_bool(me: &mut cmt_buf_t, value: &mut bool) -> io::Result<()> {
 
 pub fn get_address(me: &mut cmt_buf_t, value: &mut cmt_abi_address_t) -> io::Result<()> {
     to_io_result(unsafe { cmt_abi_get_address(me, value) })
-}
-
-pub fn start_frame(me: &mut cmt_buf_t, frame: *mut c_void) -> io::Result<()> {
-    to_io_result(unsafe { cmt_abi_start_frame(me, frame) })
 }
 
 pub fn get_bytes_s(me: &mut cmt_buf_t, of: &mut cmt_buf_t) -> io::Result<()> {
